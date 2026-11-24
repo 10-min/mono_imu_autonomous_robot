@@ -1,0 +1,35 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+__pycache__/
+*.pyc
+
+# Firmware build artifacts
+firmware/build/
+firmware/.vscode/
+*.elf
+*.map
+*.bin
+*.hex
+
+# ROS bags and large experiment data
+bags/*
+!bags/.gitkeep
+*.bag
+*.bag.active
+*.db3
+*.mcap
+
+# Generated calibration images (keep .yaml calibration files tracked)
+*.pgm
+*.yaml.bak
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local secrets
+.env

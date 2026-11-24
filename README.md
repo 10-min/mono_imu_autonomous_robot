@@ -1,0 +1,37 @@
+# mono_imu_autonomous_robot
+
+STM32 + Raspberry Pi 기반 모노 카메라/IMU 자율주행 로봇.
+
+- 로드맵: [`project.md`](project.md) (Phase 0 ~ 7)
+- 실행 계획: [`plan.md`](plan.md) (단계별 작업 / 리뷰 게이트 / 결정 레지스트)
+- 현재 단계: **Phase 0 — System Design** (`P0-1` 진행 중, `R0-1` 게이트 승인 대기)
+
+## 확정 사양 (D-01 ~ D-06)
+
+| 구분 | 사양 |
+|---|---|
+| MCU | STM32F103RBT6, 3.3V UART |
+| SBC | Raspberry Pi 5 8GB, Ubuntu 24.04 |
+| ROS | ROS 2 Jazzy |
+| 센서 | Raspberry Pi Camera Module 3 (CSI), ICM-20948 (SPI) |
+| 구동 | 2바퀴 차동구동 + 캐스터, JGA25-370 12V 130RPM, 엔코더 2채널 11PPR |
+
+## 디렉터리
+
+```
+.
+├── docs/          # 설계/인터페이스/실험 문서
+├── firmware/      # STM32 펌웨어
+├── ros2_ws/src/   # ROS 2 패키지
+├── scripts/       # 분석/실험 스크립트
+└── bags/          # rosbag (git 추적 제외, 로컬 보관)
+```
+
+## 문서 색인
+
+- `docs/ENVIRONMENT.md` — 개발/타깃 환경 및 버전
+- `docs/REVIEW_LOG.md` — 게이트 승인 기록
+- `docs/DECISIONS.md` — 설계 결정과 근거
+- 추후 생성: `SYSTEM_DESIGN.md`, `INTERFACES.md`, `TF.md`, `UART_PROTOCOL.md`, `TEST_PLAN.md`, `EXPERIMENTS.md`
+
+> 작업 규칙: `plan.md`의 게이트가 승인되기 전에는 다음 단계로 넘어가지 않습니다.
