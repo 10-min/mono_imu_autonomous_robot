@@ -34,6 +34,7 @@ ORB-SLAM3 기반 모노 카메라/IMU 자율주행 로봇 (STM32 + Raspberry Pi)
 
 ## 문서 색인
 
+- `docs/SYSTEM_DESIGN.md` — 노드 구조/데이터 흐름/TF 권한
 - `docs/ENVIRONMENT.md` — 개발/타깃 환경 및 버전
 - `docs/REVIEW_LOG.md` — 게이트 승인 기록
 - `docs/HARDWARE_BOM.md` — 부품/전원/핀매핑/미확인 항목
