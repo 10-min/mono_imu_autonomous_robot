@@ -9,5 +9,6 @@
 | 2026-11-24 | D-05 리모트 | 연결 | `origin`에 GitHub URL 등록 완료 |
 | 2026-11-24 | D-05 최초 push | 완료 | 리모트 `Initial commit`과 병합(`--allow-unrelated-histories`) 후 `main` push 완료. README의 "ORB3-SLAM 기반" 설명과 C++/CMake `.gitignore` 패턴 보존 |
 | 2026-11-24 | P0-2 하드웨어 값 | 입력 | 감속비 46.8:1, 모터 드라이버 L298N, Pi 5 전원 12V→5V/5A. 130RPM은 출력축 기준으로 해석 |
+| 2026-11-24 | P0-2 나머지 값 | 입력 | 배터리 3S Li-po 1800mAh 30C, r=32.5mm, L=198mm, 카메라 640×480@30, IMU 200Hz, 섀시 조립 완료. 정지 전류·질량은 미정으로 실측 항목 이관 |
 
 > 게이트를 통과하면 `plan.md` §5의 `[ ]`를 `[x]`로 바꾸고 이 표에 한 줄을 추가한다.
