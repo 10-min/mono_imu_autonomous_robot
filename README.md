@@ -15,7 +15,9 @@ ORB-SLAM3 기반 모노 카메라/IMU 자율주행 로봇 (STM32 + Raspberry Pi)
 | SBC | Raspberry Pi 5 8GB, Ubuntu 24.04 |
 | ROS | ROS 2 Jazzy |
 | 센서 | Raspberry Pi Camera Module 3 (CSI), ICM-20948 (SPI) |
-| 구동 | 2바퀴 차동구동 + 캐스터, JGA25-370 12V 130RPM, 엔코더 2채널 11PPR |
+| 구동 | 2바퀴 차동구동 + 캐스터, JGA25-370 12V 130RPM(출력축), 감속비 46.8:1, 엔코더 11PPR |
+| 모터 드라이버 | L298N (2A/ch) |
+| 전원 | 12V 배터리 → 모터 / 12V→5V/5A 벅 → Pi 5 / 3.3V → MCU·IMU |
 | SLAM | ORB-SLAM3 기반 (리모트 초기 README 설명 반영, 상세 구현은 `D-10` 게이트에서 확정) |
 
 ## 디렉터리
