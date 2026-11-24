@@ -2,6 +2,7 @@
 
 STM32 + Raspberry Pi 기반 모노 카메라/IMU 자율주행 로봇.
 
+- 저장소: https://github.com/10-min/mono_imu_autonomous_robot.git
 - 로드맵: [`project.md`](project.md) (Phase 0 ~ 7)
 - 실행 계획: [`plan.md`](plan.md) (단계별 작업 / 리뷰 게이트 / 결정 레지스트)
 - 현재 단계: **Phase 0 — System Design** (`P0-1` 진행 중, `R0-1` 게이트 승인 대기)

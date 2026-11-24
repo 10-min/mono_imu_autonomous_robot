@@ -24,7 +24,8 @@
 
 ## D-05 저장소 전략 — GitHub public, main + feature 브랜치
 
-- `git init` 후 `main` 브랜치 사용. 리모트 URL은 생성 시점에 연결.
+- `git init` 후 `main` 브랜치 사용.
+- 리모트: `origin = https://github.com/10-min/mono_imu_autonomous_robot.git` (연결 완료, 최초 push는 인증 설정 후 수행)
 - 커밋 메시지는 `[P<phase>-<n>] ...` 형식.
 
 ## D-06 구동 방식 — 2바퀴 차동구동 + JGA25-370
