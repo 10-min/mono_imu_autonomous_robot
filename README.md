@@ -1,11 +1,11 @@
 # mono_imu_autonomous_robot
 
-STM32 + Raspberry Pi 기반 모노 카메라/IMU 자율주행 로봇.
+ORB-SLAM3 기반 모노 카메라/IMU 자율주행 로봇 (STM32 + Raspberry Pi).
 
 - 저장소: https://github.com/10-min/mono_imu_autonomous_robot.git
 - 로드맵: [`project.md`](project.md) (Phase 0 ~ 7)
 - 실행 계획: [`plan.md`](plan.md) (단계별 작업 / 리뷰 게이트 / 결정 레지스트)
-- 현재 단계: **Phase 0 — System Design** (`P0-1` 진행 중, `R0-1` 게이트 승인 대기)
+- 현재 단계: **Phase 0 — System Design** (`P0-1` 완료, `R0-1` 게이트 승인 대기)
 
 ## 확정 사양 (D-01 ~ D-06)
 
@@ -16,6 +16,7 @@ STM32 + Raspberry Pi 기반 모노 카메라/IMU 자율주행 로봇.
 | ROS | ROS 2 Jazzy |
 | 센서 | Raspberry Pi Camera Module 3 (CSI), ICM-20948 (SPI) |
 | 구동 | 2바퀴 차동구동 + 캐스터, JGA25-370 12V 130RPM, 엔코더 2채널 11PPR |
+| SLAM | ORB-SLAM3 기반 (리모트 초기 README 설명 반영, 상세 구현은 `D-10` 게이트에서 확정) |
 
 ## 디렉터리
 

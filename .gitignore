@@ -13,6 +13,43 @@ firmware/.vscode/
 *.bin
 *.hex
 
+# CMake / C++ build artifacts
+[Bb]uild/
+[Bb]uild-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+*.d
+*.slo
+*.lo
+*.o
+*.obj
+*.gch
+*.pch
+*.ilk
+*.pdb
+*.so
+*.so.*
+*.dylib
+*.dll
+*.mod
+*.smod
+*.lai
+*.la
+*.a
+*.lib
+*.exe
+*.out
+*.app
+*.dwo
+vcpkg_installed/
+Testing/
+.cache/
+
 # ROS bags and large experiment data
 bags/*
 !bags/.gitkeep
@@ -23,12 +60,14 @@ bags/*
 
 # Generated calibration images (keep .yaml calibration files tracked)
 *.pgm
-*.yaml.bak
 
-# Editor / OS
+# Temporary files and editor / OS
+*.tmp
+*.log
+*.bak
+*.swp
 .vscode/
 .idea/
-*.swp
 .DS_Store
 
 # Local secrets
