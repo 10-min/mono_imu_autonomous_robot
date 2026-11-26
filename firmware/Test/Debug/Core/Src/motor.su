@@ -1,5 +1,0 @@
-../Core/Src/motor.c:14:7:Min	16	static
-../Core/Src/motor.c:23:6:Motor_Start	16	static
-../Core/Src/motor.c:30:6:Motor_Stop	16	static
-../Core/Src/motor.c:35:6:Set_Left_Motor	32	static
-../Core/Src/motor.c:50:6:Set_Right_Motor	32	static

@@ -8,10 +8,15 @@ __pycache__/
 # Firmware build artifacts
 firmware/build/
 firmware/.vscode/
+firmware/**/Debug/
+firmware/**/Release/
+firmware/**/.metadata/
 *.elf
 *.map
 *.bin
 *.hex
+*.cyclo
+*.su
 
 # CMake / C++ build artifacts
 [Bb]uild/
