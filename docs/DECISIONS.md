@@ -17,15 +17,17 @@
 
 - Ubuntu 24.04와 조합이 공식 지원되며, 호스트에도 `/opt/ros/jazzy` 설치 확인됨.
 
-## D-04 센서 — RPi Camera Module 3 + ICM-20948 (SPI)
+## D-04 센서 — 별도 UDP 카메라 + ICM-20948 (STM32 SPI1)
 
-- 카메라 모듈 3은 libcamera 기반이므로 ROS 2에서는 `camera_ros` 계열 드라이버 사용 (`v4l2_camera`는 모듈 3 지원 제한).
-- ICM-20948을 SPI로 연결해 IMU 출력률과 지연을 확보. 3.3V 레벨은 Pi와 호환.
+- 카메라: Pi CSI 대신 **별도 송신기에서 UDP로 JPEG 스트림** 수신 (640×480@30). `camera_udp_node`가 재조립 후 `/camera/image_raw` 발행. 송신 장치/포트/PDU 형식은 `P0-4`에서 확정.
+- IMU: **STM32 SPI1**(PA5/PA6/PA7) + DRDY 인터럽트로 200Hz 샘플링. MCU가 타임스탬프를 붙여 `IMU_DATA` 프레임으로 전송하고 `stm32_bridge`가 `/imu/data_raw` 발행.
+- SPI1 사용에 따른 핀 충돌을 피하려 USART1→USART2, PWM TIM2→TIM1, 좌 엔코더 TIM3→TIM2로 재배치 (`docs/SYSTEM_DESIGN.md` §4).
+- UART 대역 확보를 위해 baud 115200→**230400** (`D-07`). 예상 IMU 지연 3~6ms.
 
 ## D-05 저장소 전략 — GitHub public, main + feature 브랜치
 
 - `git init` 후 `main` 브랜치 사용.
-- 리모트: `origin = https://github.com/10-min/mono_imu_autonomous_robot.git` (연결 완료, 최초 push는 인증 설정 후 수행)
+- 리모트: `origin = https://github.com/10-min/mono_imu_autonomous_robot.git` (연결 및 최초 push 완료)
 - 커밋 메시지는 `[P<phase>-<n>] ...` 형식.
 
 ## D-06 구동 방식 — 2바퀴 차동구동 + JGA25-370
@@ -35,3 +37,14 @@
 - Pi 5 전원: **12V → 5V/5A 벅 컨버터**.
 - 배터리 3S Li-po 1800mAh 30C, 바퀴 반지름 32.5mm, 휠베이스 198mm, 카메라 640×480@30fps, IMU ODR 200Hz, 섀시 조립 완료.
 - 정지 전류와 로봇 질량은 미정이므로 `docs/HARDWARE_BOM.md` §5에 실측 항목으로 남겨 둠.
+
+## D-07 UART 프로토콜 — 230400bps
+
+- IMU 200Hz 전송(약 60kbps) + odom 50Hz + 명령을 수용하려면 115200bps는 여유가 부족(약 73% 사용).
+- **230400bps, 8N1, 3.3V TTL**로 확정. 예상 사용량 약 84.6kbps(여유 63%).
+- IMU 프레임에는 MCU 타임스탬프를 포함해 ROS 시간 오프셋을 보정한다.
+
+## D-09 제어 주기 — 50Hz 기본
+
+- 최대 속도 0.3 m/s, 휠베이스 198mm 기준 100Hz까지 필요하지 않음.
+- MCU 제어 **50Hz**(파라미터로 100Hz 전환 가능), 피드백 50Hz, IMU 200Hz, ROS bridge 50Hz로 확정.

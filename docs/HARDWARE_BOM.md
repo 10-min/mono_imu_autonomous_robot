@@ -8,10 +8,10 @@
 
 | # | 부품 | 수량 | 확정 사양 | 인터페이스 | 전원 | 상태 |
 |---|---|---|---|---|---|---|
-| 1 | MCU 보드 | 1 | STM32F103RBT6 (Cortex-M3 72MHz, Flash 128KB, RAM 20KB, FPU 없음) | USART1, TIM×4, SPI/I2C, ADC | 3.3V (온보드 LDO) | 확정 |
-| 2 | SBC | 1 | Raspberry Pi 5, 8GB | 40-pin GPIO, CSI, USB-C | 5V / 5A | 확정 |
-| 3 | 카메라 | 1 | Raspberry Pi Camera Module 3 (표준형, IMX708), **640×480 @ 30fps 기본** (1280×720 대안) | CSI → libcamera | Pi 5V | 확정 |
-| 4 | IMU | 1 | ICM-20948 (9-axis), **ODR 200Hz** | SPI | 3.3V | 확정 |
+| 1 | MCU 보드 | 1 | STM32F103RBT6 (Cortex-M3 72MHz, Flash 128KB, RAM 20KB, FPU 없음) | USART2, TIM×4, **SPI1**, ADC | 3.3V (온보드 LDO) | 확정 |
+| 2 | SBC | 1 | Raspberry Pi 5, 8GB | 40-pin GPIO, USB-C, 이더넷 | 5V / 5A | 확정 |
+| 3 | 카메라 송신기 | 1 | 별도 장치, **640×480 @ 30fps JPEG UDP 스트림** (장치명/포트 미정) | UDP (이더넷) | 별도 전원 | 확정 (세부 미정) |
+| 4 | IMU | 1 | ICM-20948 (9-axis), **ODR 200Hz** | **STM32 SPI1** + DRDY 인터럽트 | 3.3V | 확정 |
 | 5 | 모터 | 2 | JGA25-370, 12V, 130RPM(출력축), **감속비 46.8:1**, 엔코더 11PPR 2채널 | PWM + 방향 GPIO, 엔코더 A/B | 12V | 확정 (정지 전류 미측정) |
 | 6 | 모터 드라이버 | 1 (2채널) | **L298N** (2A/ch 연속, 방열판 필수) | ENA PWM + IN1/IN2 ×2, 5V 로직 | 12V 동력 + 5V 로직 | 확정 |
 | 7 | 배터리 | 1 | **3S Li-po 1800mAh 30C** (공칭 11.1V / 만충 12.6V, 최대 방전 54A) | XT60 등 | 11.1~12.6V | 확정 |
@@ -19,7 +19,7 @@
 | 9 | 섀시/바퀴/캐스터 | 1 세트 | **조립 완료**, 바퀴 반지름 32.5mm, 휠베이스 198mm | — | — | 확정 (질량 미측정) |
 | 10 | 전압 모니터 | 1 | MCU ADC + 분압 저항 (값 미정) | ADC | 3.3V | 미확정 |
 
-> UART 레벨은 Pi(3.3V) ↔ STM32(3.3V) 직접 연결 가능하므로 레벨 시프터 불필요. **공통 GND는 필수.**
+> UART 레벨은 Pi(3.3V) ↔ STM32(3.3V) 직접 연결 가능하므로 레벨 시프터 불필요. **공통 GND는 필수.** baud는 IMU 200Hz 전송을 위해 **230400bps**로 확정했습니다.
 
 ## 2. 전원 트리 및 예산
 
@@ -27,9 +27,9 @@
 배터리 3S Li-po 1800mAh 30C (11.1~12.6V)
  ├── L298N (12V 동력) ──▶ 좌/우 JGA25-370
  │     └── L298N 온보드 5V 레귤레이터 또는 외부 5V → 로직(IN/ENA)
- ├── 벅 컨버터 12V→5V/5A ──▶ Pi 5 (최대 25W, 평시 5~10W)
- │                            └── Camera Module 3 (CSI)
- └── STM32 온보드 LDO 3.3V ──▶ MCU + ICM-20948
+ ├── 벅 컨버터 12V→5V/5A ──▶ Pi 5 (최대 25W, 평시 5~10W) ──▶ UDP 수신 (이더넷)
+ ├── STM32 온보드 LDO 3.3V ──▶ MCU + ICM-20948 (SPI1)
+ └── 카메라 송신기 ──▶ 별도 전원 (로봇 배터리와 공통 GND 권장)
 ```
 
 - Pi 5 전원은 **12V → 5V/5A 벅 컨버터**로 확정했습니다. 부족하면 무작위 리셋·USB 불안정이 발생하므로 정격 5A 이상을 유지합니다.
@@ -47,20 +47,21 @@
 
 > 아래는 설계 초안입니다. 실제 배선 전 CubeMX와 Pi pinout으로 재확인합니다.
 
-| 신호 | STM32F103RBT6 | Pi 5 | 비고 |
+| 신호 | STM32F103RBT6 | Pi 5 / 외부 | 비고 |
 |---|---|---|---|
-| UART TX/RX | PA9(TX) / PA10(RX), USART1 | GPIO15(TXD) / GPIO14(RXD), `/dev/serial0` | TX↔RX 교차, 115200 8N1, 3.3V |
-| 좌/우 PWM | TIM2 CH1(PA0) / CH2(PA1) | — | L298N 사용으로 **1kHz부터** 시작 |
-| 좌 엔코더 A/B | TIM3 CH1(PA6) / CH2(PA7) | — | 11PPR × 4 = 44 count/모터축 회전 |
-| 우 엔코더 A/B | TIM4 CH1(PB6) / CH2(PB7) | — | 동일 |
-| L298N 좌 (ENA/IN1/IN2) | TIM2 CH1(PA0) / PC0 / PC1 | — | 3.3V GPIO → 5V 로직, 온보드 5V 점퍼 확인 |
-| L298N 우 (ENA/IN1/IN2) | TIM2 CH2(PA1) / PC2 / PC3 | — | 동일 |
-| IMU SPI | — | SPI0 (GPIO 8/9/10/11) | CS 핀은 GPIO로 별도 지정 |
-| 카메라 | — | CSI 커넥터 | libcamera |
-| 공통 GND | GND | GND | 필수 (12V/5V/3.3V 전원 모두 공통) |
+| UART TX/RX | **PA2(TX) / PA3(RX), USART2** | GPIO15(TXD) / GPIO14(RXD), `/dev/serial0` | TX↔RX 교차, **230400** 8N1, 3.3V |
+| IMU SPI1 | PA5(SCK) / PA6(MISO) / PA7(MOSI) | — | CS=PA4, DRDY=PC4(인터럽트), 200Hz |
+| 좌 엔코더 A/B | **TIM2 CH1(PA0) / CH2(PA1)** | — | 11PPR × 4 = 44 count/모터축 회전 |
+| 우 엔코더 A/B | **TIM4 CH1(PB6) / CH2(PB7)** | — | 동일 |
+| 좌/우 PWM | **TIM1 CH1(PA8) / CH2(PA9)** | — | L298N 사용으로 **1kHz부터** 시작 |
+| L298N 좌 IN1/IN2 | PC0 / PC1 | — | 3.3V GPIO → 5V 로직, 온보드 5V 점퍼 확인 |
+| L298N 우 IN1/IN2 | PC2 / PC3 | — | 동일 |
+| 카메라 UDP | — | Pi 5 이더넷 | 별도 송신기 → UDP JPEG, 포트/PDU 형식 미정 |
+| 공통 GND | GND | GND | 필수 (12V/5V/3.3V/송신기 모두 공통) |
 
-- 주의: IMU는 STM32가 아니라 **Pi에 SPI로 연결**합니다. 만약 STM32로 옮길 경우 SPI1(PA5/PA6/PA7)이 엔코더 TIM3 핀과 충돌하므로 재배선이 필요합니다.
+- SPI1(PA5/PA6/PA7)을 IMU에 쓰면 기존 TIM3 엔코더(PA6/PA7)와 충돌하므로, **UART를 USART1→USART2로, PWM을 TIM2→TIM1로, 좌 엔코더를 TIM3→TIM2로 이동**했습니다.
 - Pi 5에서 UART 활성화(`enable_uart=1`)와 `/dev/serial0` 확인이 필요합니다.
+- IMU는 MCU가 읽어 `IMU_DATA` 프레임(MCU 타임스탬프 포함)으로 Pi에 보냅니다. `stm32_bridge`가 `/imu/data_raw`를 발행합니다.
 
 ## 4. 구동/기구 제약 및 유도 상수
 
@@ -109,7 +110,8 @@
 | L298N 발열 / 정지 전류 2A 초과 | 방열판 필수, 정지 전류 실측 후 DRV8871(3.6A) 등 검토 |
 | L298N 5V 로직 점퍼/레벨 불일치 | 외부 5V 사용 시 점퍼 제거, 3.3V GPIO 인식 실측 → 필요 시 74AHCT125 |
 | Pi 5 전원 부족 | 5V/5A 벅 정격 유지, 전선 굵기 확인 |
-| Camera Module 3이 `v4l2_camera`에서 인식 안 됨 | libcamera 기반 `camera_ros` 사용 (`P3-1`에 반영됨) |
+| UDP 패킷 손실로 JPEG 프레임 누락 | frame_id/frag_idx/frag_cnt 재조립 + 드롭 로깅 (`P3-1`, `P0-4`) |
+| IMU UART 대역 부족 | 230400bps 확정, IMU 프레임 크기 최소화, 필요 시 100Hz로 강하 |
 | 2059.2 count/rev의 비정수 상수 | 부동소수점 상수로 유지하고 보정 시 실측값으로 교체 (`P1-3`) |
 | UART 노이즈로 프레임 오염 | CRC16 + 시퀀스 처리 (`P0-6`), 공통 GND/짧은 배선 |
 

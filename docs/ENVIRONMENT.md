@@ -8,8 +8,8 @@
 | OS | Ubuntu 24.04 (arm64) | D-02 |
 | ROS | ROS 2 Jazzy | D-03 |
 | MCU | STM32F103RBT6 (Cortex-M3, 72MHz, 3.3V UART) | D-01 |
-| 카메라 | Raspberry Pi Camera Module 3 (CSI, libcamera) | D-04 |
-| IMU | ICM-20948 (SPI) | D-04 |
+| 카메라 | 별도 UDP 송신기, 640×480@30 JPEG (장치/포트 미정) | D-04 |
+| IMU | ICM-20948, STM32 SPI1 + DRDY, 200Hz | D-04 |
 | 모터 | JGA25-370 12V 130RPM(출력축), 감속비 46.8:1, 엔코더 11PPR × 2 | D-06 |
 | 모터 드라이버 | L298N (2A/ch, 5V 로직) | D-06 |
 | Pi 5 전원 | 12V → 5V/5A 벅 컨버터 | D-06 |
@@ -33,7 +33,7 @@ source /opt/ros/jazzy/setup.bash
 
 ## 버전 고정 원칙
 
-- OS/ROS/주요 라이브러리(OpenCV, libcamera, SLAM 패키지 등)의 버전을 이 문서에 기록한다.
+- OS/ROS/주요 라이브러리(OpenCV, UDP 수신, SLAM 패키지 등)의 버전을 이 문서에 기록한다.
 - 업그레이드는 별도 `P-step`으로 다루고, 변경 시 `docs/DECISIONS.md`에 근거를 남긴다.
 
 ## 미확인 사항 (R0-2 전에 확인)
