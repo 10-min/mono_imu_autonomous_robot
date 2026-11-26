@@ -9,7 +9,7 @@
 | ROS | ROS 2 Jazzy | D-03 |
 | MCU | STM32F103RBT6 (Cortex-M3, 72MHz, 3.3V UART) | D-01 |
 | 카메라 | 별도 UDP 송신기, 640×480@30 JPEG (장치/포트 미정) | D-04 |
-| IMU | ICM-20948, STM32 SPI1 + DRDY, 200Hz | D-04 |
+| IMU | ICM-20948, STM32 SPI1(CS=PA4), 현재 50Hz polling / 200Hz 미결정 | D-04 |
 | 모터 | JGA25-370 12V 130RPM(출력축), 감속비 46.8:1, 엔코더 11PPR × 2 | D-06 |
 | 모터 드라이버 | L298N (2A/ch, 5V 로직) | D-06 |
 | Pi 5 전원 | 12V → 5V/5A 벅 컨버터 | D-06 |

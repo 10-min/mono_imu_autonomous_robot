@@ -50,9 +50,9 @@
 | D-04 | 센서 | **별도 UDP 카메라 송신기**(640×480@30 JPEG) + IMU(ICM-20948, **STM32 SPI1**) | R0-2 / R0-3 | 확정 |
 | D-05 | 저장소 전략 | git init → GitHub public, main + feature 브랜치 | R0-1 | 확정 |
 | D-06 | 구동 방식 | 2바퀴 차동 + JGA25-370 12V 130RPM(출력축), 감속비 46.8:1, 엔코더 11PPR, L298N 드라이버, Pi 5 전원 12V→5V/5A | R0-2 | 확정 |
-| D-07 | UART 물리/프레임 | **230400bps**, 8N1, 3.3V TTL, 헤더+SEQ+MSG_ID+LEN+PAYLOAD+CRC16, IMU 프레임에 MCU 타임스탬프 포함 | R0-6 | 미결정 |
+| D-07 | UART 물리/프레임 | 펌웨어 현재: **USART1 remap PB6/PB7, 115200**, `0xAA\|CMD\|payload\|0xFF` (SEQ/CRC 없음). 목표안: 230400 + SEQ + CRC16 + 타임스탬프 | R0-6 | 미결정 |
 | D-08 | 단위/좌표계 | REP-103( rad, m, s ), REP-105( map→odom→base_link→sensor ) | R0-5 | 미결정 |
-| D-09 | 제어 주기 | MCU **50Hz 제어**(파라미터로 100Hz 전환)/50Hz 피드백, IMU 200Hz, ROS bridge 50Hz | R0-4 | 미결정 |
+| D-09 | 제어 주기 | 펌웨어 현재: odom/IMU 50Hz 태스크, PWM 1kHz, **PID 없음**. 목표안: 제어 50Hz(100Hz 전환)/피드백 50Hz/IMU 200Hz | R0-4 | 미결정 |
 | D-10 | VIO/SLAM 구현 | 오프라인 검증 후 ORB-SLAM3 or VINS-Fusion 중 선택 | R4-1 / R5-1 | 미결정 |
 | D-11 | 내비게이션 구현 | Nav2 vs 경량 커스텀 스택 (지도/센서 구성에 따라 결정) | R6-1 | 미결정 |
 | D-12 | 장애물 감지 센서 | 모노 카메라만 vs 초음파/ToF 추가 | R6-4 | 미결정 |
@@ -116,8 +116,8 @@
      - `/cmd_vel` (geometry_msgs/Twist), `/odom` (nav_msgs/Odometry), `/wheel/odom`, `/imu/data_raw`(**stm32_bridge 발행**), `/camera/image_raw`(**UDP 수신 노드 발행**), `/camera/camera_info`, `/tf`, `/diagnostics`
   2. **UDP 카메라 인터페이스 명세**: 송신 장치/포트, JPEG 프레임 분할(frame_id + frag_idx/frag_cnt + timestamp), 재조립 및 드롭 로깅
   3. 서비스/액션 정의: `/emergency_stop`, `/reset_odometry`, `/set_goal` (D-11 결정 전까지는 인터페이스만)
-  4. 파라미터 목록: 최대 속도(0.3 m/s), 가/감속, wheel_base(0.198m), wheel_radius(0.0325m), UART 포트/타임아웃, **baud 230400**
-  5. `D-09` 제어 주기 확정 (제어 50Hz / 피드백 50Hz / IMU 200Hz / bridge 50Hz)
+  4. 파라미터 목록: 최대 속도(0.3 m/s), 가/감속, wheel_base(0.198m), wheel_radius(0.0325m), UART 포트/타임아웃, **baud 미결정(현재 115200 / 목표안 230400)**
+  5. `D-09` 제어 주기 확정 (현재 펌웨어 50Hz 태스크·PID 없음 → 목표안 제어 50Hz/피드백 50Hz/IMU 200Hz/bridge 50Hz)
 - **산출물**: `docs/INTERFACES.md`
 - **검증**: 토픽 이름/타입/프레임 ID가 `P0-3` 다이어그램과 1:1 대응하는지 확인
 - **리뷰 포인트**: "나중에 바꾸기 어려운 토픽 이름/타입/단위가 여기 확정된다. 이상 없는가?"
@@ -138,9 +138,9 @@
 - **목적**: Pi↔STM32 사이의 바이트 단위 규약을 정의한다.
 - **선행 조건**: P0-4, P0-5
 - **작업**:
-  1. 프레임 구조 확정: `SOF(0xAA55) | SEQ | MSG_ID | LEN | PAYLOAD | CRC16` (`D-07` 확정)
-  2. 메시지 표: `SET_VEL`, `SET_PWM`, `ENC_FEEDBACK`, `ODOM_FEEDBACK`, **`IMU_DATA`(MCU 타임스탬프 포함, 200Hz)**, `STATUS`, `ACK/NACK`, `ESTOP`
-  3. 규칙 정의: **baud 230400**, 타임아웃(예: 500ms), 재전송/시퀀스 처리, 바이트 스터핑 필요 여부
+  1. 프레임 구조 확정: **현재 펌웨어 `0xAA | CMD(1B) | payload | 0xFF`** (CMD_IMU=0/CMD_ODOM=1/CMD_VEL=2, SEQ·CRC 없음) vs 목표안 `SOF(0xAA55) | SEQ | MSG_ID | LEN | PAYLOAD | CRC16` — `D-07` 미결정
+  2. 메시지 표: `CMD_VEL`, `CMD_ODOM`, **`CMD_IMU`(현재 50Hz, 타임스탬프 없음 / 목표 200Hz+타임스탬프)**, 목표안 `STATUS`, `ACK/NACK`, `ESTOP`
+  3. 규칙 정의: **baud 미결정(현재 115200 / 목표안 230400)**, 타임아웃(예: 500ms), 재전송/시퀀스 처리, 바이트 스터핑 필요 여부
   4. 실패 시 동작 명시: 명령 끊김 → 모터 정지, CRC 오류 → 프레임 폐기
   5. `docs/UART_PROTOCOL.md` 작성 + 예시 바이트 열 추가
 - **산출물**: `docs/UART_PROTOCOL.md`
@@ -174,7 +174,7 @@
 #### P1-1 STM32 프로젝트 골격 및 핀맵/클록 설정
 - **목적**: CubeMX 기반 프로젝트를 생성하고 PWM/엔코더/UART 핀을 배정한다.
 - **선행**: R0 승인, P0-6
-- **작업**: 클록 설정, TIM1(PWM 2ch), TIM2/TIM4(Encoder 2ch), **USART2(230400)**, **SPI1(IMU) + DRDY 인터럽트**, GPIO 방향핀, printf(retarget) 확인
+- **작업**: 현재 펌웨어 확인 — TIM1 CH2/CH3(PA9/PA10, PWM 1kHz), TIM3 remap CH1/CH3(PC6/PC8, IC), **USART1 remap PB6/PB7 115200**, USART2(PA2/PA3, printf), **SPI1(PA5/PA6/PA7, CS=PA4 polling)**, L298N 방향 PC0~PC3. DRDY/PID/failsafe는 미구현
 - **산출물**: `firmware/` 프로젝트, `docs/firmware/PINMAP.md`
 - **검증**: 보드 전원 인가 후 GPIO 토글/LED 확인, UART로 "hello" 출력
 - **리뷰**: "핀 충돌 없는가? 보드 클록이 UART baud 오차 범위 내인가?"
@@ -186,7 +186,7 @@
 - **리뷰**: "반대로 도는 바퀴가 있는가? L298N 발열/전압 강하는 없는가? 3.3V GPIO가 IN/ENA를 정상 구동하는가?"
 
 #### P1-3 엔코더 측정 및 단위 변환
-- **작업**: 엔코더 카운트 읽기, tick→rad→m 변환 상수 계산 (11PPR × 4 × 46.8 = **2059.2 count/바퀴 1회전**, `rad_per_count ≈ 0.003052`, wheel_radius 실측 시 반영)
+- **작업**: 엔코더 카운트 읽기, tick→rad→m 변환 상수 계산. 펌웨어는 **단일 채널 IC + 명령 부호로 방향 추정**이므로 `2059.2 count/rev`(quadrature ×4 가정)가 적용되지 않음. 현재는 11×46.8 = **514.8 count/rev**(에지 수 확인 필요). `P0-6`/`R0-3`에서 quadrature 전환 여부 결정 후 상수 확정
 - **산출물**: `firmware/Motor/` 소스, `docs/firmware/ENCODER_CALIB.md`
 - **검증**: 수동으로 바퀴 1회전 → 카운트 값이 이론치와 ±2% 이내
 - **리뷰**: "카운트 증가 방향이 모터 방향과 일치하는가?"
@@ -204,7 +204,7 @@
 - **리뷰**: "회전 방향 부호가 ROS 좌표계(x-forward, z-up)와 맞는가?"
 
 #### P1-6 UART 링크 및 프로토콜 구현
-- **작업**: `P0-6` 명세대로 230400bps 송신/수신/파서/CRC 구현, SEQ/ACK 처리, IMU 프레임(200Hz, MCU 타임스탬프) 발행 파이프라인 포함
+- **작업**: 현재 115200/`0xAA-CMD-0xFF` 구현을 `P0-6` 확정안으로 업그레이드 (baud/SEQ/CRC/타임스탬프/IMU 200Hz). Pump: UART 송신 mutex·DMA 수신은 이미 구현됨
 - **산출물**: `firmware/UART/`, 파서 단위 테스트
 - **검증**: PC 시리얼 모니터로 프레임 전송 → ACK 확인, CRC 오류 주입 시 폐기 확인
 - **리뷰**: "받은 명령이 실제 모터로 전달되는가? Pi 5의 `/dev/serial0`(GPIO 14/15) 활성화 + STM32와 3.3V 직접 연결/공통 GND가 맞는가?"
@@ -436,7 +436,7 @@
 |---|---|---|---|
 | R0-1 | P0-1 | 개발 환경/버전, git 전략 확정 | [x] |
 | R0-2 | P0-2 | 하드웨어 BOM/제약 확정 | [x] |
-| R0-3 | P0-3 | 노드 구조/데이터 흐름/TF 권한 확정 | [x] |
+| R0-3 | P0-3 | 노드 구조/데이터 흐름/TF 권한 확정 | [ ] |
 | R0-4 | P0-4 | 토픽/주기/파라미터 확정 | [ ] |
 | R0-5 | P0-5 | TF 트리/단위/축 확정 | [ ] |
 | R0-6 | P0-6 | UART 프레임/타임아웃 확정 | [ ] |
