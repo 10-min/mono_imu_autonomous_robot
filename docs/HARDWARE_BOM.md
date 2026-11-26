@@ -11,7 +11,7 @@
 | 1 | MCU 보드 | 1 | STM32F103RBT6 (Cortex-M3 72MHz, Flash 128KB, RAM 20KB, FPU 없음) | USART1(remap)/USART2, TIM1/TIM3(remap), **SPI1**, ADC | 3.3V (온보드 LDO) | 확정 |
 | 2 | SBC | 1 | Raspberry Pi 5, 8GB | 40-pin GPIO, USB-C, 이더넷 | 5V / 5A | 확정 |
 | 3 | 카메라 송신기 | 1 | 별도 장치, **640×480 @ 30fps JPEG UDP 스트림** (장치명/포트 미정) | UDP (이더넷) | 별도 전원 | 확정 (세부 미정) |
-| 4 | IMU | 1 | ICM-20948 (9-axis), 현재 **50Hz polling** / 200Hz 미결정 | **STM32 SPI1**, CS=PA4 | 3.3V | 확정 |
+| 4 | IMU | 1 | ICM-20948 (9-axis), **200Hz polling** (펌웨어 50Hz → 변경 필요) | **STM32 SPI1**, CS=PA4 | 3.3V | 확정 |
 | 5 | 모터 | 2 | JGA25-370, 12V, 130RPM(출력축), **감속비 46.8:1**, 엔코더 11PPR 2채널 | PWM + 방향 GPIO, 엔코더 A/B | 12V | 확정 (정지 전류 미측정) |
 | 6 | 모터 드라이버 | 1 (2채널) | **L298N** (2A/ch 연속, 방열판 필수) | ENA PWM + IN1/IN2 ×2, 5V 로직 | 12V 동력 + 5V 로직 | 확정 |
 | 7 | 배터리 | 1 | **3S Li-po 1800mAh 30C** (공칭 11.1V / 만충 12.6V, 최대 방전 54A) | XT60 등 | 11.1~12.6V | 확정 |
@@ -19,7 +19,7 @@
 | 9 | 섀시/바퀴/캐스터 | 1 세트 | **조립 완료**, 바퀴 반지름 32.5mm, 휠베이스 198mm | — | — | 확정 (질량 미측정) |
 | 10 | 전압 모니터 | 1 | MCU ADC + 분압 저항 (값 미정) | ADC | 3.3V | 미확정 |
 
-> UART 레벨은 Pi(3.3V) ↔ STM32(3.3V) 직접 연결 가능하므로 레벨 시프터 불필요. **공통 GND는 필수.** 펌웨어는 현재 **115200bps** (사용률 약 21%). 230400은 선택 사항이며 미결정입니다.
+> UART 레벨은 Pi(3.3V) ↔ STM32(3.3V) 직접 연결 가능하므로 레벨 시프터 불필요. **공통 GND는 필수.** **230400bps 채택** (사용자 결정). 펌웨어 현재값 115200 → 변경 필요.
 
 ## 2. 전원 트리 및 예산
 
@@ -49,11 +49,11 @@
 
 | 신호 | STM32F103RBT6 | Pi 5 / 외부 | 비고 |
 |---|---|---|---|
-| Pi↔MCU UART | **PB6(TX) / PB7(RX), USART1 remap** | GPIO15(TXD) / GPIO14(RXD), `/dev/serial0` | TX↔RX 교차, **115200** 8N1, 3.3V, DMA 수신 |
+| Pi↔MCU UART | **PB6(TX) / PB7(RX), USART1 remap** | GPIO15(TXD) / GPIO14(RXD), `/dev/serial0` | TX↔RX 교차, **230400** 8N1(펌웨어 115200 → 변경), 3.3V, DMA 수신 |
 | 디버그 UART | PA2(TX) / PA3(RX), USART2 | — | 115200, `printf` retarget |
-| IMU SPI1 | PA5(SCK) / PA6(MISO) / PA7(MOSI) | — | CS=PA4, polling 50Hz (DRDY 미사용) |
-| 좌 엔코더 | **PC6, TIM3 remap CH1 (input capture)** | — | 단일 채널. 11PPR × 46.8 = 514.8 count/rev (에지 수 확인 필요) |
-| 우 엔코더 | **PC8, TIM3 remap CH3 (input capture)** | — | 동일. 방향은 명령 부호로 추정 |
+| IMU SPI1 | PA5(SCK) / PA6(MISO) / PA7(MOSI) | — | CS=PA4, polling **200Hz**(펌웨어 50Hz → 변경), DRDY 미사용 |
+| 좌 엔코더 | **TIM3 remap CH1/CH2 (PC6/PC7)** | — | **A/B quadrature 결정**. 11PPR × 4 × 46.8 = 2059.2 count/rev (현재 단일 채널 → 변경 필요) |
+| 우 엔코더 | **TIM3 remap CH3/CH4 (PC8/PC9)** | — | 동일 (A/B quadrature) |
 | 좌/우 PWM | **PA9 / PA10, TIM1 CH2 / CH3** | — | PSC=71, ARR=1000 → **1kHz** (이미 구현됨) |
 | L298N 좌 IN1/IN2 | PC0 / PC1 | — | 3.3V GPIO → 5V 로직, 온보드 5V 점퍼 확인 |
 | L298N 우 IN1/IN2 | PC2 / PC3 | — | 동일 |
@@ -63,7 +63,7 @@
 
 - USART1이 PB6/PB7로 **remap**되어 있어 PA9/PA10의 TIM1 PWM과 충돌하지 않습니다. (`__HAL_AFIO_REMAP_USART1_ENABLE`)
 - TIM3도 **full remap**되어 CH1→PC6, CH3→PC8입니다. (`__HAL_AFIO_REMAP_TIM3_ENABLE`)
-- quadrature A/B 4배수 카운트 값 2059.2 count/rev는 현재 펌웨어에서 적용되지 않았습니다. `P1-3`에서 실측 후 확정합니다.
+- quadrature A/B 4배수 카운트 값 2059.2 count/rev가 **사용자 결정으로 채택**되었습니다. 현재 펌웨어는 단일 채널 IC이므로 A/B 2채널로 수정하고 `P1-3`에서 실측 검증합니다.
 - IMU는 MCU가 읽어 `CMD_IMU` 프레임으로 Pi에 보냅니다. 현재 SEQ/CRC/타임스탬프가 없어 `P0-6`에서 추가 여부를 결정합니다.
 
 ## 4. 구동/기구 제약 및 유도 상수
@@ -114,7 +114,7 @@
 | L298N 5V 로직 점퍼/레벨 불일치 | 외부 5V 사용 시 점퍼 제거, 3.3V GPIO 인식 실측 → 필요 시 74AHCT125 |
 | Pi 5 전원 부족 | 5V/5A 벅 정격 유지, 전선 굵기 확인 |
 | UDP 패킷 손실로 JPEG 프레임 누락 | frame_id/frag_idx/frag_cnt 재조립 + 드롭 로깅 (`P3-1`, `P0-4`) |
-| IMU UART 대역 부족 | 현재 115200bps 사용률 약 21%, 200Hz로 올려도 약 56%. 필요 시 230400 검토 (미결정) |
+| IMU UART 대역 부족 | 230400 채택. IMU 200Hz 포함 사용률 약 28%이므로 여유 충분 |
 | 2059.2 count/rev의 비정수 상수 | 부동소수점 상수로 유지하고 보정 시 실측값으로 교체 (`P1-3`) |
 | UART 노이즈로 프레임 오염 | CRC16 + 시퀀스 처리 (`P0-6`), 공통 GND/짧은 배선 |
 
