@@ -5,7 +5,7 @@ ORB-SLAM3 기반 모노 카메라/IMU 자율주행 로봇 (STM32 + Raspberry Pi)
 - 저장소: https://github.com/10-min/mono_imu_autonomous_robot.git
 - 로드맵: [`project.md`](project.md) (Phase 0 ~ 7)
 - 실행 계획: [`plan.md`](plan.md) (단계별 작업 / 리뷰 게이트 / 결정 레지스트)
-- 현재 단계: **Phase 0 — System Design** (`P0-3` 수정 반영, **`R0-3` 검토 대기**)
+- 현재 단계: **Phase 0 — System Design** (`P0-3` 완료, **`R0-3` 승인** / `P0-4` 인터페이스 명세 대기)
 
 ## 확정 사양 (D-01 ~ D-06)
 

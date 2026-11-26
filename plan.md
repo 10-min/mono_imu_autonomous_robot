@@ -50,7 +50,7 @@
 | D-04 | 센서 | **별도 UDP 카메라 송신기**(640×480@30 JPEG) + IMU(ICM-20948, **STM32 SPI1**) | R0-2 / R0-3 | 확정 |
 | D-05 | 저장소 전략 | git init → GitHub public, main + feature 브랜치 | R0-1 | 확정 |
 | D-06 | 구동 방식 | 2바퀴 차동 + JGA25-370 12V 130RPM(출력축), 감속비 46.8:1, 엔코더 11PPR, L298N 드라이버, Pi 5 전원 12V→5V/5A | R0-2 | 확정 |
-| D-07 | UART 물리/프레임 | **USART1 remap PB6/PB7, 230400, 8N1, 3.3V TTL**. 프레임 형식은 검토 중 (현재 `0xAA\|CMD\|payload\|0xFF` / 목표안 `SOF\|SEQ\|ID\|LEN\|CRC16`) | R0-6 | 미결정 |
+| D-07 | UART 물리/프레임 | **USART1 remap PB6/PB7, 230400, 8N1, 3.3V TTL**, 프레임 `AA55\|SEQ\|ID\|LEN\|PAYLOAD\|CRC16` (CRC-16/XMODEM, IMU에 MCU timestamp 4B) | R0-3 / R0-6 | 결정 (문서화는 R0-6) |
 | D-08 | 단위/좌표계 | REP-103( rad, m, s ), REP-105( map→odom→base_link→sensor ) | R0-5 | 미결정 |
 | D-09 | 제어 주기 | **IMU 200Hz**, odom/피드백 50Hz, PWM 1kHz. **PID는 `P1-4`로 미룸**, MCU failsafe는 `P1-7`에 포함 | R0-4 | 미결정 |
 | D-10 | VIO/SLAM 구현 | 오프라인 검증 후 ORB-SLAM3 or VINS-Fusion 중 선택 | R4-1 / R5-1 | 미결정 |
@@ -138,8 +138,8 @@
 - **목적**: Pi↔STM32 사이의 바이트 단위 규약을 정의한다.
 - **선행 조건**: P0-4, P0-5
 - **작업**:
-  1. 프레임 구조 확정: 현재 펌웨어 `0xAA | CMD(1B) | payload | 0xFF` (SEQ/CRC 없음) vs 목표안 `SOF(0xAA55) | SEQ | MSG_ID | LEN | PAYLOAD | CRC16` — **사용자 설명 대기 중**
-  2. 메시지 표: `CMD_VEL`, `CMD_ODOM`, **`CMD_IMU`(200Hz, MCU 타임스탬프 포함 예정)**, 목표안 `STATUS`, `ACK/NACK`, `ESTOP`
+  1. 프레임 구조: **`AA55 | SEQ | MSG_ID | LEN | PAYLOAD | CRC16` 확정** (`R0-3`). 상세 바이트 표는 `docs/SYSTEM_DESIGN.md` §4.2
+  2. 메시지 표: `CMD_VEL`, `CMD_ODOM`, **`CMD_IMU`(200Hz, MCU timestamp 4B 포함)**, 목표안 `STATUS`, `ACK/NACK`, `ESTOP`
   3. 규칙 정의: **baud 230400**, 타임아웃(예: 500ms), 재전송/시퀀스 처리, 바이트 스터핑 필요 여부
   4. 실패 시 동작 명시: 명령 끊김 → 모터 정지, CRC 오류 → 프레임 폐기
   5. `docs/UART_PROTOCOL.md` 작성 + 예시 바이트 열 추가
@@ -436,7 +436,7 @@
 |---|---|---|---|
 | R0-1 | P0-1 | 개발 환경/버전, git 전략 확정 | [x] |
 | R0-2 | P0-2 | 하드웨어 BOM/제약 확정 | [x] |
-| R0-3 | P0-3 | 노드 구조/데이터 흐름/TF 권한 확정 | [ ] |
+| R0-3 | P0-3 | 노드 구조/데이터 흐름/TF 권한 확정 | [x] |
 | R0-4 | P0-4 | 토픽/주기/파라미터 확정 | [ ] |
 | R0-5 | P0-5 | TF 트리/단위/축 확정 | [ ] |
 | R0-6 | P0-6 | UART 프레임/타임아웃 확정 | [ ] |
@@ -466,7 +466,6 @@
 
 ## 7. 바로 시작할 일
 
-1. **프레임 형식 결정** (사용자 질문 "프레임은 뭐지" 답변 대기) → `P0-6`에 반영
-2. `P0-4` 토픽/메시지/서비스/QoS 명세 작성 → `docs/INTERFACES.md`
-3. UDP 카메라 송신 장치/포트/PDU 형식과 IMU 타임스탬프 에포크 확정 (`SYSTEM_DESIGN.md` §9)
-4. `R0-3` 게이트 승인 → `P0-5`(TF 프레임 설계)로 진행
+1. `P0-4` 토픽/메시지/서비스/QoS 명세 작성 → `docs/INTERFACES.md` (`R0-3` 승인 완료)
+2. UDP 카메라 송신 장치/포트/PDU 형식과 IMU 타임스탬프 에포크 확정 (`SYSTEM_DESIGN.md` §9)
+3. `R0-4` 게이트 검토 후 `P0-5`(TF 프레임 설계)로 진행

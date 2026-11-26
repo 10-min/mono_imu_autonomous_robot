@@ -64,7 +64,7 @@
 - USART1이 PB6/PB7로 **remap**되어 있어 PA9/PA10의 TIM1 PWM과 충돌하지 않습니다. (`__HAL_AFIO_REMAP_USART1_ENABLE`)
 - TIM3도 **full remap**되어 CH1→PC6, CH3→PC8입니다. (`__HAL_AFIO_REMAP_TIM3_ENABLE`)
 - quadrature A/B 4배수 카운트 값 2059.2 count/rev가 **사용자 결정으로 채택**되었습니다. 현재 펌웨어는 단일 채널 IC이므로 A/B 2채널로 수정하고 `P1-3`에서 실측 검증합니다.
-- IMU는 MCU가 읽어 `CMD_IMU` 프레임으로 Pi에 보냅니다. 현재 SEQ/CRC/타임스탬프가 없어 `P0-6`에서 추가 여부를 결정합니다.
+- IMU는 MCU가 읽어 `MSG_ID=0` 프레임으로 Pi에 보냅니다. **B 형식 확정**: `AA55|SEQ|ID|LEN|PAYLOAD|CRC16` + timestamp 4B. 상세는 `SYSTEM_DESIGN.md` §4.2, 정식 문서는 `P0-6`에서 작성.
 
 ## 4. 구동/기구 제약 및 유도 상수
 

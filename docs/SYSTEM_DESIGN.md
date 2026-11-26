@@ -2,7 +2,7 @@
 
 - 작성일: 2026-11-24 / 수정: 2026-11-26 (사용자 주석 반영)
 - 근거: `project.md` Phase 0, `docs/HARDWARE_BOM.md`, `plan.md` §3/§5
-- 상태: **초안 — R0-3 검토 대기** (사용자 주석 반영 완료, 게이트 미승인)
+- 상태: **R0-3 승인 완료** (2026-11-26)
 
 ## 1. 계층 구조
 
@@ -119,31 +119,50 @@ goal → nav_node → /cmd_vel → stm32_bridge → UART(SET_VEL)
 - USART1은 `__HAL_AFIO_REMAP_USART1_ENABLE()`로 PB6/PB7에, TIM3은 `__HAL_AFIO_REMAP_TIM3_ENABLE()`로 PC6~PC9에 매핑됩니다. PA9/PA10 PWM과 충돌하지 않습니다.
 - A/B quadrature 전환 후 `2059.2 count/rev`(11PPR × 4 × 46.8)가 유효해집니다 (`P1-3`에서 실측 검증).
 
-### 4.2 UART 대역 (230400 결정 반영)
+### 4.2 확정 프레임 형식 (R0-3)
 
-현재 프레임: `0xAA | CMD(1B) | payload | 0xFF` — `CMD_IMU=0`, `CMD_ODOM=1`, `CMD_VEL=2`. **SEQ/CRC 없음.** 프레임 형식 변경 여부는 아래 §4.3 참조.
+`AA55 | SEQ | MSG_ID | LEN | PAYLOAD | CRC16`
 
-| 메시지 | 주기 | 크기 | 사용량 |
+| 필드 | 크기 | 규칙 |
+|---|---|---|
+| SOF | 2B | `0xAA 0x55`, 재동기용 |
+| SEQ | 1B | 0~255 순환, 유실 검출 |
+| MSG_ID | 1B | 0=IMU, 1=ODOM, 2=VEL, 3=STATUS, 4=ACK, 5=NACK, 6=ESTOP |
+| LEN | 1B | PAYLOAD 바이트 수. payload에 `0xFF`가 있어도 끝 구분 가능 |
+| PAYLOAD | LEN | 메시지별 데이터 |
+| CRC16 | 2B | CRC-16/XMODEM (poly `0x1021`, init `0x0000`, non-reflected, xorout 0). 계산 범위 `SEQ~PAYLOAD`, 전송 순서 **low byte first** |
+
+예시 바이트 열 — IMU (SEQ=`0x07`, LEN=`0x1C`=28):
+
+```
+AA 55 07 00 1C [timestamp 4B][gx 4B][gy 4B][gz 4B][ax 4B][ay 4B][az 4B] [CRC_lo] [CRC_hi]
+```
+
+- VEL (ID=2): LEN=`0x08`, float 좌/우 → 프레임 15B
+- ODOM (ID=1): LEN=`0x08`, int32 좌/우 → 프레임 15B
+- IMU 타임스탬프는 MCU tick 또는 unix epoch(§9에서 확정)
+
+| 메시지 | 주기 | 프레임 크기 | 사용량 |
 |---|---|---|---|
-| IMU (`CMD_IMU`, float×6) | **200Hz** (변경 필요) | 27B | 5400 B/s |
-| Odom (`CMD_ODOM`, int32×2) | 50Hz | 11B | 550 B/s |
-| Cmd (`CMD_VEL`, float×2) | 50Hz | 11B | 550 B/s |
-| **합계** | | | **약 6500 B/s (65kbps)** |
+| IMU (ID=0) | 200Hz | 35B | 7000 B/s |
+| ODOM (ID=1) | 50Hz | 15B | 750 B/s |
+| VEL (ID=2) | 50Hz | 15B | 750 B/s |
+| **합계** | | | **약 8500 B/s (85kbps)** |
 
-→ 230400bps(23040 B/s) 기준 사용률 약 **28%**입니다. 115200에서도 56%로 동작 가능하지만, 사용자 결정으로 **230400을 채택**합니다.
+→ 230400bps(23040 B/s) 기준 사용률 약 **37%**입니다. 상세 문서 `docs/UART_PROTOCOL.md`는 `P0-6`에서 작성합니다.
 
-### 4.3 R0-3 결정 입력 상태
+### 4.3 R0-3 결정 상태
 
 | 항목 | 사용자 결정 | 반영 위치 |
 |---|---|---|
 | Pi↔MCU UART | **230400 유지** (USART1 remap PB6/PB7) | `D-07`, `P1-6`, §4.2 |
 | IMU 출력률 | **200Hz** (polling 유지) | `D-09`, `P1-1`, §2 |
 | 엔코더 | **A/B quadrature** → 2059.2 count/rev | `P0-2`, `P1-3`, §4.1 |
-| UART 프레임 | **미결정** (사용자 설명 요청 중) | `P0-6`, `docs/UART_PROTOCOL.md` |
+| UART 프레임 | **B 채택**: `AA55\|SEQ\|ID\|LEN\|PAYLOAD\|CRC16` + IMU timestamp 4B | `D-07`, §4.2 |
 | 모터 PID | **`P1-4`로 미룸** | `P1-4` |
 | MCU failsafe | **포함** (`P1-7`) | `P1-7`, §6 |
 
-> 게이트 `R0-3`은 아직 `[ ]`입니다. 프레임 형식 회신 후 최종 승인을 받습니다.
+> 게이트 `R0-3`은 **승인됨**입니다. 잔여 항목은 `P0-4`에서 다룹니다.
 
 ## 5. TF 발행 권한
 
@@ -186,10 +205,11 @@ goal → nav_node → /cmd_vel → stm32_bridge → UART(SET_VEL)
 | "카메라는 UDP 통신으로 할거임" | 반영. `camera_udp_node`가 UDP JPEG 수신. 세부 포트/패킷 형식은 `P0-4`에서 확정 |
 | "Hardware Layer 식으로" | 반영. 4계층 구조 + 부품 매핑 표(§1) |
 | "노드 분리 괜찮아" | 노드 분리 유지 |
-| "IMU MCU 연결 지연?" | **200Hz로 결정**. polling 유지, MCU 타임스탬프는 프레임 결정 시 포함. 지연 약 3~6ms + 지터 보상 필요 |
+| "IMU MCU 연결 지연?" | **200Hz로 결정**. polling 유지, IMU 프레임에 MCU timestamp 4B 포함. 지연 약 3~6ms + 지터 보상 필요 |
 | "엔코더 odom도 같이 쓰면?" | 반영. `/wheel/odom` → VIO prior → SLAM (§5) |
 | "안전 둘 다 있어야지" | 반영. Pi supervisor + MCU failsafe 2계층(§6) |
 | "제어 100Hz까지 안가도 될듯" | 반영. odom 50Hz + IMU 200Hz. **PID는 `P1-4`로 미룸**, MCU failsafe는 `P1-7`에 포함 |
+| "프레임은 뭐지" → 선택 | **B 채택**: `AA55\|SEQ\|ID\|LEN\|PAYLOAD\|CRC16`, CRC-16/XMODEM, IMU timestamp 4B (§4.2) |
 
 ## 9. 다음 단계 및 미확정 사항
 
@@ -200,11 +220,15 @@ goal → nav_node → /cmd_vel → stm32_bridge → UART(SET_VEL)
 - [ ] `camera_info` 캘리브레이션 값 전달 방법 (UDP 내 전송 vs ROS 파라미터 파일)
 - [ ] IMU 타임스탬프 단위/에포크 (MCU tick vs unix epoch) 및 오프셋 보정 방법
 
-`R0-3` 잔여 결정 사항 (§4.3 참조):
+`R0-3` 결정 완료 (§4.3 참조):
 
 - [x] UART 230400 — 사용자 결정 반영
 - [x] IMU 200Hz — 사용자 결정 반영 (polling 유지)
 - [x] 엔코더 A/B quadrature — 사용자 결정 반영 (2059.2 count/rev)
+- [x] UART 프레임 B — `AA55|SEQ|ID|LEN|PAYLOAD|CRC16` + IMU timestamp 4B
 - [x] PID `P1-4`로 미룸 / failsafe `P1-7` 포함 — 사용자 결정 반영
-- [ ] **UART 프레임 형식** — 현재 `0xAA|CMD|payload|0xFF` 유지 vs `SOF|SEQ|ID|LEN|PAYLOAD|CRC16` 도입 (사용자 설명 요청 중)
+
+남은 확인 항목:
+
 - [ ] PC4 GPIO 용도 확인 (코드에서 SET만 됨)
+- [ ] IMU 타임스탬프 에포크 (MCU tick vs unix epoch) — `P0-4`에서 결정

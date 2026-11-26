@@ -42,8 +42,9 @@
 
 - **사용자 결정**: USART1 remap PB6/PB7, **230400** 8N1, 3.3V TTL. 펌웨어 현재값 115200 → 변경 필요.
 - IMU 200Hz 적용 시 사용량 약 65kbps → 230400 기준 28% (115200이어도 56%이나 사용자 결정으로 상향).
-- 프레임 형식은 아직 미결정: 현재 `0xAA | CMD(1B) | payload | 0xFF` / 목표안 `SOF | SEQ | MSG_ID | LEN | PAYLOAD | CRC16`. `P0-6`/`R0-6`에서 확정.
-- MCU 타임스탬프는 프레임 확정 시 IMU 페이로드에 포함.
+- **프레임 B 확정** (`R0-3`): `AA55 | SEQ | MSG_ID | LEN | PAYLOAD | CRC16`. CRC-16/XMODEM(poly 0x1021, init 0), 범위 `SEQ~PAYLOAD`, low byte first.
+- IMU(ID=0) payload는 timestamp 4B + gyro/accel float×6 = 28B → 프레임 35B. 200Hz 사용량 7000 B/s.
+- `docs/UART_PROTOCOL.md` 정식 작성은 `P0-6`에서 수행.
 
 ## D-09 제어 주기 — IMU 200Hz / odom 50Hz (R0-3 결정 입력)
 
